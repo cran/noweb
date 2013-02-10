@@ -1,0 +1,256 @@
+\section{Noweave}
+The noweave processor is more challenging, largley because of the need
+to add indexing.  Like noweb, we take care to make the result of noweave
+have exactly the same number of lines as the input source code, so that
+Latex error messages give correct line numbers.
+<<noweave>>=
+noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
+    if (class(file)=="noweb") input <- file
+    else {
+        if (.Platform$OS.type == "windows") 
+            file <- chartr("\\", "/", file)
+        input <- nwread(file, syntax)
+    }
+    nchunk <- length(input)
+    chunktype <- sapply(input, "class")
+    <<rep-double-brackets>>
+
+    if (missing(out)) 
+        out <-  paste(sub("\\.[^\\.]*$", "", basename(file)), "tex", sep='.')
+    con <- file(out, open="w")
+ 
+    <<weavecode-count>>
+    if (indent>0) ispace <- paste(rep(" ", indent), collapse='')
+    cname <- names(input)
+    for (i in 1:length(input)) {
+        chunk <- input[[i]]
+        if (class(chunk)=="nwtext") cat(chunk, sep="\n", file=con)
+        else {
+            <<weavecode>>
+            }
+    }
+    close(con)
+    cat("\n", sprintf("You can now run (pdf)latex on %s",
+                      sQuote(out)), "\n", sep= " ")
+}
+@ 
+
+When outputting code chunks we hyperlink each to any prior or
+succeeding occurences of the chunk.  
+An important tool for this is a simple count of the number of
+occurrences of each label.
+<<weavecode-count>>=        
+temp <- c(names(input), unlist(lapply(input, function(x) 
+                                      if (is.list(x)) x$xref else NULL)))
+ncount <- table(temp[temp != ""])
+ncount2 <- 0*ncount  # number so far, same names, but zeroed
+@ 
+
+Because we want to use the hyperref command the defined verbatim
+environment [[nwchunk]] has left the backslash, \{, and \} characters active.
+We first need to escape these. 
+Then process the chunks one by one, adding the hyperlinks.
+<<weavecode>>=
+chunk$lines <- gsub("\\", "{\\textbackslash}", chunk$lines, fixed=TRUE)
+chunk$lines <- gsub("{", "\\{", chunk$lines, fixed=TRUE)
+chunk$lines <- gsub("}", "\\}", chunk$lines, fixed=TRUE)
+chunk$lines <- gsub("\\{\\textbackslash\\}", "{\\textbackslash}",
+                    chunk$lines, fixed=TRUE)
+@ 
+The last line above undoes damage that 2 and 3 did to textbackslash insertions.
+<<weavecode>>=
+cn <- cname[i]
+ncount2[cn] <- ncount2[cn] +1
+# The label for the chunk
+if (ncount[cn]==1)   # has no references
+    cat("\\begin{nwchunk}\n\\nwhypn{", cn, "}=\n",  
+        sep='', file=con)
+else {
+    if (ncount2[cn]==1)   #first instance of the name
+       cat("\\begin{nwchunk}\n\\nwhypf{", cn, 1, "}{", cn, "}{", cn, 2, 
+           "}=\n", sep='', file=con)
+    else if (ncount2[cn]== ncount[cn])  #last instance of the name
+        cat("\\begin{nwchunk}\n\\nwhypb{", cn, ncount[cn], "}{", cn, "}{",  cn,
+            ncount[cn]-1, "}=\n", sep='', file=con)
+    else #both
+        cat("\\begin{nwchunk}\n\\nwhyp{", cn, ncount2[cn], "}{", cn, "}{", cn, 
+            ncount2[cn]-1, "}{", cn, ncount2[cn]+1, 
+            "}=\n", sep='', file=con)
+}
+@ 
+
+Now replace any references to other chunks with the appropriate reference
+<<weavecode>>=
+if (!is.null(chunk$xref)) {
+    for (rr in 1:length(chunk$xref)) {
+        cn <- chunk$xref[rr]
+        ncount2[cn] <- ncount2[cn] +1
+        if (ncount[cn] ==1) # has no references
+            new <- paste("\\\\nwhypn{", cn, "}", sep='')
+        else {
+            if (ncount2[cn]==1)  #first instance
+                new <- paste("\\\\nwhypf{", cn, 1, "}{", cn, "}{", cn, 2, "}", 
+                             sep='')
+            else if (ncount2[cn] == ncount[cn]) #last instance
+                new <- paste("\\\\nwhypb{", cn, ncount[cn], "}{", cn, "}{",  
+                             cn, ncount[cn]-1, "}", sep='')
+            else #both
+                new <- paste("\\\\nwhyp{", cn, ncount2[cn], "}{", cn, "}{", 
+                             cn, ncount2[cn]-1, "}{", cn, ncount2[cn]+1, "}", 
+                             sep='')
+        }
+        chunk$lines[chunk$xindex[rr]] <- sub(syntax$coderef, paste(chunk$indent[rr],
+                                                                   new, sep=''),
+                                             chunk$lines[chunk$xindex[rr]])
+    }
+}
+
+#write it out
+if (indent==0) cat(chunk$lines, sep='\n', file=con)
+else cat(paste(ispace, chunk$lines, sep=''), sep='\n', file=con)
+cat("\\end{nwchunk}\n", file=con)
+@ 
+           
+In noweb one can use \verb![[text]]! to set ``text'' in typewriter
+font.  Replace this with \verb!texttt{text}!.
+This replacement is not done in code or within any other
+environment (verbatim, math, tables, figures, ...)
+The bugaboo for the code is someone who puts other things on
+the same line as a latex begin or end statement, which means to
+be careful we need to keep track of partial lines; doing this
+is 9/10 of the effort.
+
+Given a chunk, a piece of target text, and a 2 element vector
+containing the starting line and position within the line,
+the lookahead function finds the first instance of that target.
+It returns a two element vector containing the first line/position
+value after the target.  If it can't find a match it returns a
+position of zero.
+<<rep-double-brackets>>=
+lookahead <- function(chunk, text, start) {
+    # Return the first line #, pos# in the input that is after the text.
+    # first look at the starting line
+   indx <- gregexpr(text, chunk[start[1]], fixed=T)[[1]]
+    if (any(indx >= start[2])) {
+        indx <- min(indx[indx>= start[2]])
+        if (indx + nchar(text) >= nchar(chunk[start[1]])) c(start[1]+1, 1)
+        else c(start[1], indx + nchar(text))
+        }
+    else { #get first match on later lines
+        indx <- regexpr(text, chunk, fixed=T)
+        temp <- which(indx >0)
+
+       if (any(temp > start[1])) {
+            keep <- min(temp[temp > start[1]])
+            end <- indx[keep]+ nchar(text)
+            if (end > nchar(chunk[keep])) c(keep+1, 1)
+            else c(keep, end)
+            }
+        else c(1+ length(chunk), 0)  #no match found
+        }
+    }
+@ 
+
+R (at least in my hands) is not really the right language for text
+processing.  But I don't want to depend on outside code,
+and programs are small so speed is not an issue.
+There are two holes in the code.  First, I don't check for
+the built in math modes.  However, two starting square brackets
+would be very unusual notation so we expect no problems there.
+Second I don't deal with nested lists, i.e., you can have a
+\verb!\begin{itemize}! within an itemize list.  
+Again, I think this is okay.  What is the real target are
+verbatim environments.
+
+Walk down the chunks of the input one by one.  If we are doing
+the very first one, then start by skipping forward to the
+\verb!\begin{document}! line.
+Otherwise we start at indx = line 1, position 1.
+Then
+\begin{enumerate}
+  \item Create \texttt{lines}, which is the text yet to be looked at.
+  \item Find the next instance of \verb!\begin{!, \verb!\verb!, or
+    \verb![[!.  Process the object, and then skip ahead.    %]]
+  \item Repeat until the code is done.
+\end{enumerate}
+
+  
+<<rep-double-brackets>>= 
+# First chunk is always the prolog
+for (i in 1:length(input)) {
+    chunk <- input[[i]]
+    if (i==1) {
+        indx <- lookahead(chunk, "\\begin{document", c(1,1))
+        if (indx[2] ==0) stop("No begin{document} found, I'm confused")
+        }
+    else indx <- c(1,1)
+    
+    while(class(chunk)== "nwtext" && indx[1] <= length(chunk)) {
+        # Find the next thing of interest
+        # tline is what's left of the current line
+        tline <- substring(chunk[indx[1]], indx[2], nchar(chunk[indx[1]]))
+        lines <-  c(tline, chunk[-(1:indx[1])], c("\\begin \\verb"))
+        temp1 <- grep("\\begin{", lines, fixed=TRUE)
+        temp2 <- grep("\\verb",  lines, fixed=TRUE)
+        temp3 <- grep("[[",  lines, fixed=TRUE)
+
+        if (length(temp3) ==0) break  #no potential replacements
+        else {
+            nextlineno <- min(c(temp1, temp2, temp3))
+            nextline <- lines[nextlineno]
+            pos1 <- regexpr("\\begin{", nextline, fixed=TRUE)
+            pos2 <- regexpr("\\verb", nextline, fixed=TRUE)
+            pos3 <- regexpr("[[", nextline, fixed=TRUE)
+        
+            if (pos1 >0 && (pos2<0 || pos2> pos1) && (pos3<0 || pos3> pos1)) {
+                # the next thing is a begin clause
+                target <- sub("}.*", "", 
+                          substring(nextline, pos1+attr(pos1, "match.length")))
+                indx <- lookahead(chunk, paste("\\end{", target, "}", sep=''),
+                              c(indx[1] + nextlineno -1, pos1))
+            }
+            else if (pos2 >0 && (pos3<0 || pos3 > pos2)) {
+                # the next thing is a verb clause
+                target <- substring(nextline, pos2+5, pos2+5)
+                indx <- lookahead(chunk, target, c(indx[1] + nextlineno -1, 
+                                  pos2+6))
+            }
+            else {    
+                # found a [[, do the replacement
+                origline <- indx[1] + nextlineno -1 
+                ltemp <- nwletter(chunk[origline])
+                if (nextlineno >1 || indx[2] ==1) {
+                    #replace the whole line
+                    chunk[origline] <- sub("(\\[\\[)([^]]*)(]])", 
+                                         paste("\\\\Verb", ltemp, "\\2", ltemp, sep=''),
+                                           chunk[origline])
+                    }
+                else { #replace the right half of the line
+                    temp <-sub("(\\[\\[)([^]]*)(]])",
+                               paste("\\\\Verb", ltemp, "\\2", ltemp, sep=''),
+                               nextline)
+                    
+                    chunk[origline] <- paste(substring(chunk[origline], 1,
+                                                       indx[2]-1),
+                                         temp, sep='')
+                }
+                indx <- c(indx[1], indx[2]+6)
+             }
+        }  
+    } #end of while loop
+    input[[i]] <- chunk
+}
+@ 
+
+This little function finds a letter that isn't in the given string,
+one that can be used to delineate a Verb command.
+<<nwletter>>=
+nwletter <- function(x, try=c("!", "?", "*", "+")){
+    for (i in 1:length(try)) {
+        if (!grepl(try[i], x,fixed=TRUE)) break
+        }
+    try[i]
+    }
+@ 
+\end{document}
+
