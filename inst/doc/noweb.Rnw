@@ -151,8 +151,10 @@ The basic rules are
     indentation from several pages ago, and the standard emacs indentation
     rules for R code work in each chunk de-novo.
   \item Code chunks can be in any order.  
-  \item The construct \verb![[x<- 3]]! will cause the text in the interior
-    of the brackets to be set in the same font as a code chunk.
+  \item The construct \verb![[coxph]]! will cause the text in the interior
+    of the brackets to be set in verbatim mode.  
+    One can also use \verb!\code{coxph}!, which is similar to it's use
+    in the R manuals.
   \item Include \verb!\usepackage{noweb}! in the latex document.  It in
     turn makes use of the fancyvrb and hyperref packages.
   \item One can use either .Rnw or .nw as the suffix on source code.  
@@ -174,8 +176,16 @@ noweb mode works fine.  The newer ESS version 12 created Rnw mode from scratch,
 does not include a noweb file, and emacs reverts to the old, non-working nw 
 code.}
 
+In general I prefer the use of \verb!\code{something}! to \verb![[something]]!
+The advantage of the latter is that the phrase can include characters that
+are special to TeX such as \verb!#!, but this usage should be unusual.
+The disadvantages of the square bracket form is that inclusions that 
+have subscripts become hard to read, and there may be situations where the
+nowweave function gets confused by them.
+
+
 The ability to refer to a chunk of code but then to defer its definition
-until later is an important feature.
+until later is an important feature of the noweb framework.
 As in writing a textbook, it allows the author to concentrate on presenting
 the material in \emph{idea} order rather than code order.
 
