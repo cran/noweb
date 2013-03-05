@@ -378,8 +378,11 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
 
     program <- nwextract(input, target, prefix="")
 
-    if (length(out)) cat(program, file=out, sep='\n')
-    invisible(program)
+    if (length(out)) {
+        cat(program, file=out, sep='\n')
+        out
+    }
+    else invisible(program)
     }
 @ 
 

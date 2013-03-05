@@ -35,6 +35,7 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
     close(con)
     cat("\n", sprintf("You can now run (pdf)latex on %s",
                       sQuote(out)), "\n", sep= " ")
+    out #return the file name that was created
 }
 @ 
 
