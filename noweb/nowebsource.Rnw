@@ -13,13 +13,6 @@
 \begin{document}
 \maketitle
 \section{Introduction}
- The {\tt{}coxme} function for mixed effects analyses based on a Cox
-proportional hazards model is one of the later additions to the
-{\tt{}survival} library in S.
-It is easily the most complex bit of code in the package from all points
-of view: mathematical, algorithmic, and S code wise.
-As such, it seems like a natural candidate for documentation and 
-maintainance using the literal programming model.  
 \begin{quotation}
 Let us change or traditional attitude to the construction of programs.
 Instead of imagining that our main task is to instruct a \emph{computer}
@@ -27,23 +20,51 @@ what to do, let us concentrate rather on explaining to \emph{humans}
 what we want the computer to do.  (Donald E. Knuth, 1984).
 \end{quotation}
 
-The .Rnw files for the source code of \emph{coxme} are not suitable for
-processing with Sweave; it's goal is to insert the results of R code %'
-execution into 
-a document, mine is to act as the repository and documentation for the
-code itself.  These are completely different and need different tools.
-Luckily, however, the noweb format of ESS (.Rnw or .Snw files) works 
-perfectly for creating the source files needed for either goal.
-To process the files I use the \emph{noweb} system of Ramsey.
-The \emph{notangle} routine extracts R source files from the merged .nw
-file, and the \emph{noweave} routine creates lovely pdf files via
-latex.
+The above quote is a primary rationale for \emph{literate programming}.
+Knuth referred to the resulting document as a web since it contained
+a mix of code fragments and associated text.  
+From this single document we can \emph{weave} a pdf file for human
+readers, or \emph{tangle} the file to produce code for the computer.
+Daniel Mall's website on literate programming
+\url{www.literateprogramming.com} has much more information.
+From this beginning arose a number of implementations, e.g., CWEB for the
+management of C code \url{http://www-cs-faculty.stanford.edu/~uno/cweb.html}.
+Another is the \emph{noweb} system of Norman Ramsay, which is
+language agnostic.  
+Noweb style files for R source code, of which this document is one,
+thus look just like Sweave or knitr latex files.  If we give them a
+file suffix of ``.Rnw'' then they are  handled automatically by
+Emacs/ESS or Rstudio.  
+This provides nice formatting of the embedded R code chunks.
 
+The .Rnw files of the resulting code are not suitable for
+processing with Sweave or knitr, however; 
+their goal is to insert the results of R code execution into 
+a document, ours is to act as the repository and documentation for the
+code itself.  These are completely different and need different tools.
+Instead we use the \code{noweave} and \code{notangle} programs to
+produce the latex and source code, respectively.
 One problem is that the noweb package will not be found on a typical user
 machine.  
 Those who use unix can install noweb using the usual apt-get command, but
 for Windows or MacIntosh it is not so easy.
-To make the code more self contained, I have written a simple
+This R package implements the noweb system entirely in R.
+
+From a user's point of view there are two primary differences between
+the creation of a knitr and noweb document.
+The first is that every code chunk must have a name and the second that
+code chunks do not have options.
+The second of these arises from the fact that the chunks are not executed,
+only echoed, and almost all of the chunk options in knitr control exectuion
+or plotting details.
+The requrement for a name comes about because chunks of code are arrayed
+in the document for \emph{human} readability, which is almost never the
+same order needed by the computer for the final code.
+The labels allow the \code{notangle} program to select certain portions
+of the code and to properly reorder the components that belong to it.
+
+
+
 noweb parser in R.  
 The \emph{noweb.sty} file that accompanies my version is much
 simpler than the one found in the noweb source, because I use
@@ -378,11 +399,8 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
 
     program <- nwextract(input, target, prefix="")
 
-    if (length(out)) {
-        cat(program, file=out, sep='\n')
-        out
-    }
-    else invisible(program)
+    if (length(out)) cat(program, file=out, sep='\n')
+    invisible(program)
     }
 @ 
 

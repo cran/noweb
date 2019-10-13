@@ -1,20 +1,26 @@
 \name{NEWS}
 \title{NEWS file for the noweb package}
-\section{Changes in version 1.0-4}{
+\section{Changes in version 1.1-2}{
   \itemize{
-    \item Per the 3.0 changes in R reported to me on 5Mar13, add the
-    "pattern" argument to the registration, and change the noweb and
-    noweave commands so as to return the name of the file they have
-    created.
+    \item Addition of LazyData: true, and a further punctuation change
+    in the title field.
 }}
-    
 
+\section{Changes in version 1.1-1}{
+  \itemize{
+    \item Slight change in the Title punctuation, at the request of
+    CRAN
+}}
+
+\section{Changes in version 1.1}{
+  \itemize{
+    \item Revise the vignette.  (Inspired by a talk by Donald Knuth at
+    userR 2016.)
+}}
 \section{Changes in version 1.0-3}{
   \itemize{
-    \item Add the noweb.sty file as a data set
-
-    \item Fix a case where it got confused by too many "]" characters in
-    a row.
+    \item All code chunks are expected to have a name.  Issue an error
+    message if this is not so instead of dying.
 }}
 
 \section{Changes in version 1.0-2}{

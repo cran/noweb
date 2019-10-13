@@ -5,7 +5,7 @@
  Extract a named bit of code from the noweb source of R functions
 }
 \usage{
-notangle(file, target = "*", out, syntax=nowebSyntax, ...)
+notangle(file, target = "*", out, syntax = nowebSyntax, \ldots)
 }
 \arguments{
   \item{file}{an input file containing noweb code, or alternately
@@ -23,8 +23,9 @@ notangle(file, target = "*", out, syntax=nowebSyntax, ...)
   suffix changed to ".R".
   A value of \code{out=NULL} can be used to suppress file creation.
 }
-\item{syntax}{a list defining the syntax rules for noweb}
-\item{\dots}{unused argments needed to match Sweave usage}
+\item{syntax}{defines the syntax to detect code chunks.  This would
+  rarely if ever be changed by a user.}
+\item{\ldots}{extra arguments; unused.  (Compatability with Sweave).}
 }
 \value{
   A character vector containing the code, with the invisible attribute
@@ -34,7 +35,7 @@ notangle(file, target = "*", out, syntax=nowebSyntax, ...)
   11:97-105, 1994.
 }
 \author{Terry Therneau}
-\seealso{\code{\link{nwread}}}
+\seealso{\code{\link{noweave}}}
 \examples{
 \dontrun{
  # Extract the nwread function

@@ -5,7 +5,7 @@
  Write a TeX file from a noweb source file.
 }
 \usage{
-noweave(file, out, indent=1, syntax=nowebSyntax, ...)
+noweave(file, out, indent=1, syntax=nowebSyntax, \ldots)
 }
 \arguments{
   \item{file}{an input file containing noweb code, or alternately
@@ -17,9 +17,11 @@ noweave(file, out, indent=1, syntax=nowebSyntax, ...)
   suffix changed to ".tex".
   }
   \item{indent}{the amount to indent code chunks}
-\item{syntax}{a list defining the syntax rules for noweb}
-\item{\dots}{unused argments needed to match Sweave usage}
+\item{syntax}{defines the syntax to detect code chunks.  This would
+  rarely if ever be changed by a user.}
+\item{\ldots}{extra arguments; unused.  (Compatability with Sweave).}
 }
+
 \details{
   R code written using noweb is a mixture of Latex documentation and
   chunks of R code.  The \code{noweave} command formats these into a TeX
@@ -27,7 +29,7 @@ noweave(file, out, indent=1, syntax=nowebSyntax, ...)
   The \code{notangle} command writes out R files for the computer's use.
   }
 \author{Terry Therneau}
-\seealso{\code{\link{nwread}}, \code{\link{notangle}}}
+\seealso{\code{\link{notangle}}}
 \examples{
 \dontrun{
  # Create the TeX file of documentation for the noweb library

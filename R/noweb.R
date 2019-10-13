@@ -134,14 +134,6 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
         input <- nwread(file, syntax)
     }
 
-    if (missing(out)) {
-        if (target=='*') {
-            # Use the file name
-            out <- paste(sub("\\.[^\\.]*$", "", basename(file)), "R", sep='.')
-            }
-        else out <- paste(target, "R", sep='.')
-        }
-
     cname <- names(input)
     indx <- match(target, cname)
     if (is.na(indx)) {
@@ -156,8 +148,15 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
         stop(paste("Code structure has circular references: ",
                    paste(temp, collapse=" --> ")))
 
-    program <- nwextract(input, target, prefix="")
+   program <- nwextract(input, target, prefix="")
 
+    if (missing(out)) {
+        if (target=='*') {
+            # Use the file name
+            out <- paste(sub("\\.[^\\.]*$", "", basename(file)), "R", sep='.')
+            }
+        else out <- paste(target, "R", sep='.')
+        }
     if (length(out)) cat(program, file=out, sep='\n')
     invisible(program)
     }
@@ -194,76 +193,92 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
     }
     nchunk <- length(input)
     chunktype <- sapply(input, "class")
-    repbracket <- function(lines) {
-        lines2 <- lines
-        nline <- length(lines)
-        # Get rid of any verbatim
-        while(length(z <- grep("\\begin\\{[vV]erbatim}", lines2))>0) {
-            z <- z[1] 
-            lines2[z] <- sub("\\begin\\{[vV]erbatim}", "                ", 
-                             lines2[z])
-            end <- regexpr("\\end\\{[vV]erbatim", lines2[z:nline])
-            z2 <- z + min(end) -1 
-            lines2[z:z2] <- ""
-            lines[z2] <- sub("\\end\\{[vV]erbatim}", "              ", lines2[z])
+    lookahead <- function(chunk, text, start) {
+        # Return the first line #, pos# in the input that is after the text.
+        # first look at the starting line
+       indx <- gregexpr(text, chunk[start[1]], fixed=T)[[1]]
+        if (any(indx >= start[2])) {
+            indx <- min(indx[indx>= start[2]])
+            if (indx + nchar(text) >= nchar(chunk[start[1]])) c(start[1]+1, 1)
+            else c(start[1], indx + nchar(text))
             }
-        # Get rid of any verb
-        while(length(z <- grep("\\[vV]erb", lines2)) >0) {
-            z <- z[1]
-            temp <- regexpr("\\verb", lines2[z])
-            tchar <- substring(lines2, temp+1,1)  #delimiter for \verb
-            str <- paste("(\\\\[Vv]erb", tchar, "[^", tchar, "]*", tchar,")", 
-                         sep='')
-            temp2 <- nchar(sub(str, "\\1", lines2[z])) #length of string
-            lines[z] <- sub(str, paste(rep(" ", temp2, collapse='')), lines2[z])
-            }
-        
-        # Do the replacement
-        while (length(z <- grep("\\[\\[", lines2)) >0) {
-            z <- z[1]
-            start <- regexpr("\\[\\[", lines2[z])
-            end <- regexpr("]*]]", lines2[z])  #first good stopping point
-            end <- end + attr(end, "match.length") -1
-            if (end > start) {
-                ltemp <- nwletter(lines[z]) #an unused letter on that line 
-                lines[z] <- paste(substring(lines[z], 1, start-1),
-                                  sub("\\[\\[(.*)]]", 
-                                   paste("\\\\Verb", ltemp, "\\1", ltemp, sep=''), 
-                                      substring(lines[z], start, end)),
-                                  substring(lines[z], end+1, nchar(lines[z])),
-                                  sep='')
-                
-                lines2[z] <- paste(substring(lines2[z], 1, start-1),
-                                             sub("\\[\\[(.*)]]", 
-                                    paste("\\\\Verb", ltemp, "\\1", ltemp, sep=''), 
-                                      substring(lines2[z], start, end)),
-                                  substring(lines2[z], end+1, nchar(lines2[z])),
-                                  sep='')
+        else { #get first match on later lines
+            indx <- regexpr(text, chunk, fixed=T)
+            temp <- which(indx >0)
+
+           if (any(temp > start[1])) {
+                keep <- min(temp[temp > start[1]])
+                end <- indx[keep]+ nchar(text)
+                if (end > nchar(chunk[keep])) c(keep+1, 1)
+                else c(keep, end)
                 }
-            else {
-                #browser()   #used during debugging
-                end <- start +2  #no matching ]] found, let it go by
-                substring(lines2[z], start, start+1) <- "  "
-                }
+            else c(1+ length(chunk), 0)  #no match found
             }
-        lines
-    }
+        }
     # First chunk is always the prolog
     for (i in 1:length(input)) {
         chunk <- input[[i]]
-        if (class(chunk)=="nwtext" && any(grepl("\\[\\[", chunk))) {
-            if (i==1) {
-                indx <- grep("\\begin{document}", chunk,fixed=TRUE )
-                if (length(indx)==0) stop("No begin{document} found, I'm confused")
-                temp <- chunk[indx[1]:length(chunk)]
-                temp <- c(chunk[1:indx], repbracket(chunk[(indx+1):length(chunk)]))
+        if (i==1) {
+            indx <- lookahead(chunk, "\\begin{document", c(1,1))
+            if (indx[2] ==0) stop("No begin{document} found, I'm confused")
             }
-            else temp <- repbracket(chunk)
+        else indx <- c(1,1)
+        
+        while(class(chunk)== "nwtext" && indx[1] <= length(chunk)) {
+            # Find the next thing of interest
+            # tline is what's left of the current line
+            tline <- substring(chunk[indx[1]], indx[2], nchar(chunk[indx[1]]))
+            lines <-  c(tline, chunk[-(1:indx[1])], c("\\begin \\verb"))
+            temp1 <- grep("\\begin{", lines, fixed=TRUE)
+            temp2 <- grep("\\verb",  lines, fixed=TRUE)
+            temp3 <- grep("[[",  lines, fixed=TRUE)
+
+            if (length(temp3) ==0) break  #no potential replacements
+            else {
+                nextlineno <- min(c(temp1, temp2, temp3))
+                nextline <- lines[nextlineno]
+                pos1 <- regexpr("\\begin{", nextline, fixed=TRUE)
+                pos2 <- regexpr("\\verb", nextline, fixed=TRUE)
+                pos3 <- regexpr("[[", nextline, fixed=TRUE)
             
-            attributes(temp) <- attributes(chunk)
-            input[[i]] <- temp
-        }
-    } 
+                if (pos1 >0 && (pos2<0 || pos2> pos1) && (pos3<0 || pos3> pos1)) {
+                    # the next thing is a begin clause
+                    target <- sub("}.*", "", 
+                              substring(nextline, pos1+attr(pos1, "match.length")))
+                    indx <- lookahead(chunk, paste("\\end{", target, "}", sep=''),
+                                  c(indx[1] + nextlineno -1, pos1))
+                }
+                else if (pos2 >0 && (pos3<0 || pos3 > pos2)) {
+                    # the next thing is a verb clause
+                    target <- substring(nextline, pos2+5, pos2+5)
+                    indx <- lookahead(chunk, target, c(indx[1] + nextlineno -1, 
+                                      pos2+6))
+                }
+                else {    
+                    # found a [[, do the replacement
+                    origline <- indx[1] + nextlineno -1 
+                    ltemp <- nwletter(chunk[origline])
+                    if (nextlineno >1 || indx[2] ==1) {
+                        #replace the whole line
+                        chunk[origline] <- sub("(\\[\\[)([^]]*)(]])", 
+                                             paste("\\\\Verb", ltemp, "\\2", ltemp, sep=''),
+                                               chunk[origline])
+                        }
+                    else { #replace the right half of the line
+                        temp <-sub("(\\[\\[)([^]]*)(]])",
+                                   paste("\\\\Verb", ltemp, "\\2", ltemp, sep=''),
+                                   nextline)
+                        
+                        chunk[origline] <- paste(substring(chunk[origline], 1,
+                                                           indx[2]-1),
+                                             temp, sep='')
+                    }
+                    indx <- c(indx[1], indx[2]+6)
+                 }
+            }  
+        } #end of while loop
+        input[[i]] <- chunk
+    }
 
     if (missing(out)) 
         out <-  paste(sub("\\.[^\\.]*$", "", basename(file)), "tex", sep='.')
@@ -333,8 +348,6 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
             }
     }
     close(con)
-    cat("\n", sprintf("You can now run (pdf)latex on %s",
-                      sQuote(out)), "\n", sep= " ")
 }
 tab.to.blank <- function(x, tabstop=8) {
     blanks <- rep(" ", tabstop)
@@ -368,7 +381,7 @@ findverbatim <- function(code, syntax){
     }
     sort(unique(lines))
 }
-nwletter <- function(x, try=c("!", "?", "+", LETTERS)){
+nwletter <- function(x, try=c("!", "?", "*", "+")){
     for (i in 1:length(try)) {
         if (!grepl(try[i], x,fixed=TRUE)) break
         }

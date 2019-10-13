@@ -1,15 +1,14 @@
-Title: Noweb system for R
+Title: The 'noweb' System for R
 Maintainer: Terry Therneau <terry.therneau@mayo.edu>
 Priority: optional
 Package: noweb
-Version: 1.0-4
-Date: 2013-03-05
+Version: 1.1-2
 Author: Terry Therneau
 Description: The noweb system for source code, implemented in R.
-Depends: R (>= 3.0.0)
 License: LGPL-2
 VignetteBuilder: noweb
-Packaged: 2013-03-27 12:48:27 UTC; therneau
 NeedsCompilation: no
+LazyData: true
+Packaged: 2019-10-11 13:27:54 UTC; therneau
 Repository: CRAN
-Date/Publication: 2013-04-03 10:42:26
+Date/Publication: 2019-10-13 17:00:02 UTC

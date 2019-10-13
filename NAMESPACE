@@ -1,3 +1,2 @@
-export("nwread")
 export("notangle")
 export("noweave")

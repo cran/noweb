@@ -1,12 +1,35 @@
 \documentclass{article}
-\usepackage{noweb}
 \usepackage{comment}
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{graphicx,fancyvrb,hyperref}
+
+%forward, backward, and both hyperlinks
+% nwhypf{my label}{text to put here}{label of forward link}
+% nwhypb{my label}{text to put here}{label of backwards link}
+% nwhyp {my label}{text to put here}{label of backwards link}{forward link label}
+\newcommand{\nwhypf}[3]{\hypertarget{#1}{$\langle$\textit{#2}}\hyperlink{#3}{$\rangle$}}
+\newcommand{\nwhypb}[3]{\hyperlink{#3}{$\langle$}\hypertarget{#1}{\textit{#2}$\rangle$}}
+\newcommand{\nwhyp}[4]{\hyperlink{#3}{$\langle$}\hypertarget{#1}{\textit{#2}}\hyperlink{#4}{$\rangle$}}
+% no hyperlink code reference
+\newcommand{\nwhypn}[1]{$\langle$\textit{#1}$\rangle$}
+
+% dummy out noweboptions, in case someone used them (they are part
+%  of Ramsay's standalone version
+\newcommand{\noweboptions}[1]{}
+
+% The standard font for ~ used in formulas is ugly, redefine it
+%  to the math mode symbol by making use of an active charcter trick
+% Leave the \, {, and } characters active
+%\newcommand{\twiddle}{\ensuremath{\sim}}
+\newcommand{\twiddle}{\textasciitilde}
+\DefineVerbatimEnvironment{nwchunk}{Verbatim}{commandchars=\\\{\},%
+codes={\catcode`~=\active},defineactive=\def~{\twiddle}}
 
 \title{Literate Programming using noweb}
 \author{Terry Therneau}
 
 %\VignetteIndexEntry{Using noweb for R Source Code}
-%\VignetteEngine{noweb}
+%\VignetteEngine{noweb::noweb}
 
 \begin{document}
 \maketitle
@@ -31,7 +54,7 @@ article focuses on Norman Ramsey's \emph{noweb}, an simple LP tool that
 is language agnostic \cite{Ramsay94, Johnson2000}.
 
 Most R users will already be familiar with the basic structure of
-a noweb document, since the noweb system was the inspiration for Sweave.
+a noweb document, since the noweb system was the inspiration or Sweave.
 
 \section{Why use LP for S}
 Documentation of code is often an afterthought, particularly in a 
@@ -71,7 +94,7 @@ The literate programming literature contains more and better stated
 arguments for the benefit of this approach.
 
 \section{Coding}
-Like an Sweave file, the noweb file consists of 
+Like an Sweave file, the noweb file 
 consists of interleaved text and code chunks, the format is
 nearly identical.
 Here is the first section of the coxme code (after the document's
@@ -79,7 +102,7 @@ header and and an introduction).
 \begin{verbatim}
 \section{Main program}
 The [[coxme]] code starts with a fairly standard argument list.
-@<<coxme>>=
+<<coxme>>=
 coxme <- function(formula,  data, 
 	weights, subset, na.action, init, 
 	control, ties= c("efron", "breslow"),
@@ -125,6 +148,7 @@ coxme <- function(formula,  data,
     <<finish-up>>
 }   
 @ 
+
 In the final pdf document each of the chunks is hyperlinked to any prior
 or later instances of that chunk name.
 
@@ -151,10 +175,8 @@ The basic rules are
     indentation from several pages ago, and the standard emacs indentation
     rules for R code work in each chunk de-novo.
   \item Code chunks can be in any order.  
-  \item The construct \verb![[coxph]]! will cause the text in the interior
-    of the brackets to be set in verbatim mode.  
-    One can also use \verb!\code{coxph}!, which is similar to it's use
-    in the R manuals.
+  \item The construct \verb![[x<- 3]]! will cause the text in the interior
+    of the brackets to be set in the same font as a code chunk.
   \item Include \verb!\usepackage{noweb}! in the latex document.  It in
     turn makes use of the fancyvrb and hyperref packages.
   \item One can use either .Rnw or .nw as the suffix on source code.  
@@ -176,16 +198,8 @@ noweb mode works fine.  The newer ESS version 12 created Rnw mode from scratch,
 does not include a noweb file, and emacs reverts to the old, non-working nw 
 code.}
 
-In general I prefer the use of \verb!\code{something}! to \verb![[something]]!
-The advantage of the latter is that the phrase can include characters that
-are special to TeX such as \verb!#!, but this usage should be unusual.
-The disadvantages of the square bracket form is that inclusions that 
-have subscripts become hard to read, and there may be situations where the
-nowweave function gets confused by them.
-
-
 The ability to refer to a chunk of code but then to defer its definition
-until later is an important feature of the noweb framework.
+until later is an important feature.
 As in writing a textbook, it allows the author to concentrate on presenting
 the material in \emph{idea} order rather than code order.
 
@@ -318,7 +332,7 @@ pdf form of the code can be found in the inst/doc directory.
 
 
 \begin{comment}
-The "buid" command for the library insists on running notangle on
+The "build" command for the library insists on running notangle on
 the code in this file. So I need this section in order for
 notangle to work.  But I don't want it to appear in the pdf document.
 
