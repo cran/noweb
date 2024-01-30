@@ -1,4 +1,3 @@
-# Automatically generated from all.nw using noweb
 nwread <- function(file, syntax) {
     if (!file.exists(file)) stop("input file not found")
     program <- tab.to.blank(readLines(file))
@@ -69,7 +68,7 @@ nwparse <- function(lines, sourceline, syntax) {
     }
 nwloop <- function(code) {   
     xref <- lapply(code, function(x) 
-                   if (class(x)=="nwcode") unique(x$xref) else NULL)
+                   if (inherits(x, "nwcode")) unique(x$xref) else NULL)
 
     nwchase <- function(chain) {
         xtemp <- xref[[chain[1]]]  #routines called by the head of the chain
@@ -134,6 +133,14 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
         input <- nwread(file, syntax)
     }
 
+    if (missing(out)) {
+        if (target=='*') {
+            # Use the file name
+            out <- paste(sub("\\.[^\\.]*$", "", basename(file)), "R", sep='.')
+            }
+        else out <- paste(target, "R", sep='.')
+        }
+
     cname <- names(input)
     indx <- match(target, cname)
     if (is.na(indx)) {
@@ -148,17 +155,10 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
         stop(paste("Code structure has circular references: ",
                    paste(temp, collapse=" --> ")))
 
-   program <- nwextract(input, target, prefix="")
+    program <- nwextract(input, target, prefix="")
 
-    if (missing(out)) {
-        if (target=='*') {
-            # Use the file name
-            out <- paste(sub("\\.[^\\.]*$", "", basename(file)), "R", sep='.')
-            }
-        else out <- paste(target, "R", sep='.')
-        }
     if (length(out)) cat(program, file=out, sep='\n')
-    invisible(program)
+    out
     }
 nwextract<- function(code, target, prefix="") {
     mycode <- code[names(code)==target]
@@ -185,7 +185,7 @@ nwextract<- function(code, target, prefix="") {
     as.vector(unlist(mycode))   #kill any names added to the vector
     }
 noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
-    if (class(file)=="noweb") input <- file
+    if (inherits(file, "noweb")) input <- file
     else {
         if (.Platform$OS.type == "windows") 
             file <- chartr("\\", "/", file)
@@ -196,7 +196,7 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
     lookahead <- function(chunk, text, start) {
         # Return the first line #, pos# in the input that is after the text.
         # first look at the starting line
-       indx <- gregexpr(text, chunk[start[1]], fixed=T)[[1]]
+        indx <- gregexpr(text, chunk[start[1]], fixed=T)[[1]]
         if (any(indx >= start[2])) {
             indx <- min(indx[indx>= start[2]])
             if (indx + nchar(text) >= nchar(chunk[start[1]])) c(start[1]+1, 1)
@@ -224,7 +224,7 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
             }
         else indx <- c(1,1)
         
-        while(class(chunk)== "nwtext" && indx[1] <= length(chunk)) {
+        while(inherits(chunk, "nwtext") && indx[1] <= length(chunk)) {
             # Find the next thing of interest
             # tline is what's left of the current line
             tline <- substring(chunk[indx[1]], indx[2], nchar(chunk[indx[1]]))
@@ -235,7 +235,10 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
 
             if (length(temp3) ==0) break  #no potential replacements
             else {
-                nextlineno <- min(c(temp1, temp2, temp3))
+                # this code chunk has at least one [[ in it.
+                # if the next object is a begin/end pair or a verb clause, first
+                #  skip over that, before looking again for [[
+                nextlineno <- min(c(temp1, temp2, temp3))  # target line
                 nextline <- lines[nextlineno]
                 pos1 <- regexpr("\\begin{", nextline, fixed=TRUE)
                 pos2 <- regexpr("\\verb", nextline, fixed=TRUE)
@@ -245,7 +248,10 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
                     # the next thing is a begin clause
                     target <- sub("}.*", "", 
                               substring(nextline, pos1+attr(pos1, "match.length")))
-                    indx <- lookahead(chunk, paste("\\end{", target, "}", sep=''),
+                    # do process the contents of these 3
+                    if (target %in% c("itemize", "enumerate", "description"))
+                        indx <- c(indx[1] + nextlineno -1, pos1 + 7) #skip "\begin{"
+                    else indx <- lookahead(chunk, paste0("\\end{", target, "}"),
                                   c(indx[1] + nextlineno -1, pos1))
                 }
                 else if (pos2 >0 && (pos3<0 || pos3 > pos2)) {
@@ -255,26 +261,34 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
                                       pos2+6))
                 }
                 else {    
-                    # found a [[, do the replacement
-                    origline <- indx[1] + nextlineno -1 
-                    ltemp <- nwletter(chunk[origline])
-                    if (nextlineno >1 || indx[2] ==1) {
-                        #replace the whole line
-                        chunk[origline] <- sub("(\\[\\[)([^]]*)(]])", 
-                                             paste("\\\\Verb", ltemp, "\\2", ltemp, sep=''),
-                                               chunk[origline])
-                        }
-                    else { #replace the right half of the line
-                        temp <-sub("(\\[\\[)([^]]*)(]])",
-                                   paste("\\\\Verb", ltemp, "\\2", ltemp, sep=''),
-                                   nextline)
-                        
-                        chunk[origline] <- paste(substring(chunk[origline], 1,
-                                                           indx[2]-1),
-                                             temp, sep='')
+                    # a [[ is next, do the replacement
+                    if (nextlineno>1) indx[2] <-1 # not the tail end of prior line
+                    # the nasty is [[y=x[[3]]], you have to count braces
+                    chars <- strsplit(substring(nextline, pos3),"")[[1]]
+                    end <- min(which((cumsum(chars =='[') -
+                                      cumsum(chars ==']')) ==0))
+                    if (any(match(chars[3:(end-2)], 
+                                  c("#", "$", "%",  "&", "~", "_", "^", "\\",
+                                    "{", "}"), nomatch=0) > 0)) {
+                        # there is a special tex character, use \verb
+                        ltemp <- nwletter(nextline)
+                        insert <- paste0("\\verb", ltemp)
+                    } else {
+                        ltemp <- "}"
+                        insert <- "\\texttt{"
                     }
-                    indx <- c(indx[1], indx[2]+6)
-                 }
+                    new <- paste0(substring(nextline, 1, pos3-1), insert,
+                                  paste(chars[3:(end-2)], collapse=""),
+                                  ltemp)
+                    if (end==length(chars)) {
+                        chunk[indx[1] + nextlineno -1] <- new
+                        indx <- c(indx[1]+ nextlineno, 1)
+                    } else {
+                        new <- paste0(new, paste(chars[-(1:end)], collapse=""))
+                        chunk[indx[1] + nextlineno -1] <- new
+                        indx <- c(indx[1]+ nextlineno-1, pos3 + 4)
+                    }
+                }          
             }  
         } #end of while loop
         input[[i]] <- chunk
@@ -292,7 +306,7 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
     cname <- names(input)
     for (i in 1:length(input)) {
         chunk <- input[[i]]
-        if (class(chunk)=="nwtext") cat(chunk, sep="\n", file=con)
+        if (inherits(chunk, "nwtext")) cat(chunk, sep="\n", file=con)
         else {
             chunk$lines <- gsub("\\", "{\\textbackslash}", chunk$lines, fixed=TRUE)
             chunk$lines <- gsub("{", "\\{", chunk$lines, fixed=TRUE)
@@ -300,6 +314,7 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
             chunk$lines <- gsub("\\{\\textbackslash\\}", "{\\textbackslash}",
                                 chunk$lines, fixed=TRUE)
             cn <- cname[i]
+            if (cn=="") stop("All chunks in a noweb document must have a name")
             ncount2[cn] <- ncount2[cn] +1
             # The label for the chunk
             if (ncount[cn]==1)   # has no references
@@ -348,6 +363,9 @@ noweave <- function(file, out, indent=1, syntax=nowebSyntax, ...) {
             }
     }
     close(con)
+    cat("\n", sprintf("You can now run (pdf)latex on %s",
+                      sQuote(out)), "\n", sep= " ")
+    out
 }
 tab.to.blank <- function(x, tabstop=8) {
     blanks <- rep(" ", tabstop)

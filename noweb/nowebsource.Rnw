@@ -7,6 +7,7 @@
 \usepackage{noweb}
 \hypersetup{colorlinks=true}
 \noweboptions{breakcode}
+
 \title{A \emph{noweb} processor for R}
 \author{Terry Therneau}
 
@@ -150,7 +151,7 @@ The final noweb object is a list with objects of class
 [[nwtext]] and [[nwcode]].  
 The first of these is a character vector of the input lines,
 with an optional blankline attribute.
-An [[nwcode]] object has compontents
+An [[nwcode]] object has components
 \begin{itemize}
   \item lines: the text of the code
   \item sourceline: the line number of the start of the text, in the
@@ -252,7 +253,7 @@ each starting point that can enter it.
 <<nwloop>>=
 nwloop <- function(code) {   
     xref <- lapply(code, function(x) 
-                   if (class(x)=="nwcode") unique(x$xref) else NULL)
+                   if (inherits(x, "nwcode")) unique(x$xref) else NULL)
 
     nwchase <- function(chain) {
         xtemp <- xref[[chain[1]]]  #routines called by the head of the chain
@@ -400,7 +401,7 @@ notangle <- function(file, target='*', out, syntax=nowebSyntax, ...) {
     program <- nwextract(input, target, prefix="")
 
     if (length(out)) cat(program, file=out, sep='\n')
-    invisible(program)
+    out
     }
 @ 
 

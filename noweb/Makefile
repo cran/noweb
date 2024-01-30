@@ -1,7 +1,7 @@
 all: fun doc
 
 fun:  ../R/noweb.R 
-doc:  ../inst/doc/nowebsource.pdf
+doc:  code.pdf
 R= R
 
 # Use noweb
@@ -9,20 +9,21 @@ R= R
 	echo "# Automatically generated from all.nw using noweb" > $@
 	cat nowebsource.Rnw noweave.Rnw > temp.nw
 	echo "library(noweb); notangle('temp.nw')" | $(R) --vanilla --slave
-	cat temp.R >> $@
+	mv temp.R $@
 	rm temp.nw
 
-temp.tex: nowebsource.Rnw noweave.Rnw
-	cat nowebsource.Rnw noweave.Rnw > temp.nw
+code.tex: nowebsource.Rnw noweave.Rnw noweb.sty
+	cat nowebsource.Rnw noweave.Rnw > code.nw
 	cp ../inst/include/noweb.sty .
-	echo "library(noweb); noweave('temp.nw')" | $(R) --vanilla --slave
+	echo "library(noweb); noweave('code.nw')" | $(R) --vanilla --slave
 
-../inst/doc/nowebsource.pdf: temp.tex
-	pdflatex temp.tex
-	cp temp.pdf ../inst/doc/nowebsource.pdf
+code.pdf: code.tex
+	pdflatex code.tex
 
+noweb.sty: ../inst/include/noweb.sty
+	cp ../inst/include/noweb.sty .
 clean: 
-	-rm noweb.aux noweb.sty noweb.tex noweb.out noweb.log temp*
+	-rm *.aux *.sty *.tex *.out *.log code.nw
 
 # Original code using the standalone noweb function
 #../R/noweb.R: noweb.Rnw noweave.Rnw

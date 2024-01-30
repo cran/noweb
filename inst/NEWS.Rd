@@ -1,5 +1,16 @@
 \name{NEWS}
 \title{NEWS file for the noweb package}
+\section{Changes in version 1.1-4}{
+  \itemize{
+    \item Fix an issue noted by CRAN. Both notangle and noweave should
+    return the name of the file that was created.
+}}
+\section{Changes in version 1.1-3}{
+  \itemize{
+    \item A nested construct such as [[ abc[[3]] <- 4]] would crash the
+    routine.
+}}
+
 \section{Changes in version 1.1-2}{
   \itemize{
     \item Addition of LazyData: true, and a further punctuation change

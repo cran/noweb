@@ -3,7 +3,7 @@
 %  It looks like a short form of Sweave.sty
 %
 \NeedsTeXFormat{LaTeX2e}
-\RequirePackage{graphicx,fancyvrb,hyperref}
+\RequirePackage{fancyvrb,hyperref}
 
 %forward, backward, and both hyperlinks
 % nwhypf{my label}{text to put here}{label of forward link}
@@ -27,3 +27,5 @@
 \DefineVerbatimEnvironment{nwchunk}{Verbatim}{commandchars=\\\{\},%
 codes={\catcode`~=\active},defineactive=\def~{\twiddle}}
 
+% Define the ``code'' term used often in R manuals
+\newcommand{\code}[1]{\texttt{#1}}

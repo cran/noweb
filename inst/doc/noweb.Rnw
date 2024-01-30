@@ -28,6 +28,7 @@ codes={\catcode`~=\active},defineactive=\def~{\twiddle}}
 \title{Literate Programming using noweb}
 \author{Terry Therneau}
 
+
 %\VignetteIndexEntry{Using noweb for R Source Code}
 %\VignetteEngine{noweb::noweb}
 
@@ -290,7 +291,6 @@ clean:
 @ 
 
 The first file ``main'' contains the definition of \verb!<<*>>=!
-early on
 \begin{verbatim}
 <<*>>=
 <<bdsmatrix>>
